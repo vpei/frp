@@ -1,0 +1,28 @@
+#!/bin/bash
+
+OS_type="$(uname -m)"
+case "$OS_type" in
+  x86_64|amd64)
+    OS_type='amd64'
+    ;;
+  i?86|x86)
+    OS_type='386'
+    ;;
+  aarch64|arm64)
+    OS_type='arm64'
+    ;;
+  arm*)
+    OS_type='arm'
+    ;;
+  *)
+    echo 'OS type not supported'
+    exit 2
+    ;;
+esac
+
+echo $OS_type
+download_link="https://github.com/fatedier/frp/releases/download/v0.46.1/frp_0.46.1_linux_${OS_type}.tar.gz"
+
+wget "$download_link" -O frp.zip && unzip -d /frp/ frp.zip && rm -rf /frp.zip && mv /frp/frps /usr/bin/frps && rm -rf /frp/ && chmod 0777 /usr/bin/frps
+
+cd / && /usr/bin/frps -c /etc/frp/frps.ini
