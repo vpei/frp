@@ -21,8 +21,12 @@ case "$OS_type" in
 esac
 
 echo $OS_type
-download_link="https://github.com/fatedier/frp/releases/download/v0.46.1/frp_0.46.1_linux_${OS_type}.tar.gz"
+frp_ver='0.46.1'
+echo $frp_ver
 
-wget "$download_link" -O frp.zip && unzip -d /frp/ frp.zip && rm -rf /frp.zip && mv /frp/frps /usr/bin/frps && rm -rf /frp/ && chmod 0777 /usr/bin/frps
+download_link="https://ghproxy.com/https://github.com/fatedier/frp/releases/download/v${frp_ver}/frp_${frp_ver}_linux_${OS_type}.tar.gz"
 
-cd / && /usr/bin/frps -c /etc/frp/frps.ini
+# wget "$download_link" -O frp.zip && unzip -d /frp/ frp.zip && rm -rf /frp.zip && mv /frp/frps /usr/bin/frps && rm -rf /frp/ && chmod 0777 /usr/bin/frps
+cd / && wget "$download_link" -O frp.tar.gz && tar -xf frp.tar.gz && rm -rf /frp.tar.gz && mv /frp_${frp_ver}_linux_${OS_type}/frps /usr/bin/frps && rm -rf /frp_${frp_ver}_linux_${OS_type}/ && chmod 0777 /usr/bin/frps
+
+/usr/bin/frps -c /etc/frp/frps.ini
