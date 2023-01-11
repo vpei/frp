@@ -1,0 +1,25 @@
+#FROM golang:1.19 AS building
+FROM alpine:latest
+
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
+
+RUN apk update
+RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+RUN echo 'Asia/Shanghai' >/etc/timezone
+RUN apk add --update tzdata
+RUN apk add --update bash
+
+# COPY . /building
+# WORKDIR /building
+
+RUN cd /
+
+# COPY --from=building /building/bin/frpc /usr/bin/frpc
+
+# COPY ./building/bin/frpc /usr/bin/frpc
+# ENTRYPOINT ["/usr/bin/frpc", "-c", "/etc/frp/frpc.ini"]
+
+CMD wget https://ghproxy.com/https://raw.githubusercontent.com/vpei/frp/dev/startc.sh -O start.sh && chmod 0777 start.sh && sed -i 's/\r//' start.sh && bash start.sh
+
+
+# docker login && docker buildx build -t vpei/frpc:latest --platform linux/arm/v7,linux/arm64/v8,linux/386,linux/amd64 --push .
