@@ -24,6 +24,7 @@ echo $OS_type
 download_link="https://ghproxy.com/https://github.com/fatedier/frp/releases/download/v0.46.1/frp_0.46.1_linux_${OS_type}.tar.gz"
 
 # wget "$download_link" -O frp.zip && unzip -d /frp/ frp.zip && rm -rf /frp.zip && mv /frp/frpc /usr/bin/frpc && rm -rf /frp/ && chmod 0777 /usr/bin/frpc
-cd / && wget "$download_link" -O frp.tar.gz && tar -xf frp.tar.gz && rm -rf /frp.tar.gz && mv /frp/frpc /usr/bin/frpc && rm -rf /frp/ && chmod 0777 /usr/bin/frpc
+cd / && wget "$download_link" -O frp.tar.gz && tar -xf frp.tar.gz && rm -rf /frp.tar.gz
+ls && mv /frp/frpc /usr/bin/frpc && rm -rf /frp/ && chmod 0777 /usr/bin/frpc
 
 /usr/bin/frpc -c /etc/frp/frpc.ini
