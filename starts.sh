@@ -21,7 +21,7 @@ case "$OS_type" in
 esac
 
 echo $OS_type
-frp_ver='0.46.1'
+frp_ver='0.47.0'
 echo $frp_ver
 
 download_link="https://ghproxy.com/https://github.com/fatedier/frp/releases/download/v${frp_ver}/frp_${frp_ver}_linux_${OS_type}.tar.gz"
