@@ -141,6 +141,10 @@ type BaseProxyConf struct {
 	// BandwidthLimit limit the bandwidth
 	// 0 means no limit
 	BandwidthLimit BandwidthQuantity `ini:"bandwidth_limit" json:"bandwidth_limit"`
+	// BandwidthLimitMode specifies whether to limit the bandwidth on the
+	// client or server side. Valid values include "client" and "server".
+	// By default, this value is "client".
+	BandwidthLimitMode string `ini:"bandwidth_limit_mode" json:"bandwidth_limit_mode"`
 
 	// meta info for each proxy
 	Metas map[string]string `ini:"-" json:"metas"`
@@ -183,6 +187,8 @@ type TCPProxyConf struct {
 type TCPMuxProxyConf struct {
 	BaseProxyConf   `ini:",extends"`
 	DomainConf      `ini:",extends"`
+	HTTPUser        string `ini:"http_user" json:"http_user,omitempty"`
+	HTTPPwd         string `ini:"http_pwd" json:"http_pwd,omitempty"`
 	RouteByHTTPUser string `ini:"route_by_http_user" json:"route_by_http_user"`
 
 	Multiplexer string `ini:"multiplexer"`
@@ -319,6 +325,7 @@ func defaultBaseProxyConf(proxyType string) BaseProxyConf {
 		LocalSvrConf: LocalSvrConf{
 			LocalIP: "127.0.0.1",
 		},
+		BandwidthLimitMode: BandwidthLimitModeClient,
 	}
 }
 
@@ -335,6 +342,7 @@ func (cfg *BaseProxyConf) compare(cmp *BaseProxyConf) bool {
 		cfg.GroupKey != cmp.GroupKey ||
 		cfg.ProxyProtocolVersion != cmp.ProxyProtocolVersion ||
 		!cfg.BandwidthLimit.Equal(&cmp.BandwidthLimit) ||
+		cfg.BandwidthLimitMode != cmp.BandwidthLimitMode ||
 		!reflect.DeepEqual(cfg.Metas, cmp.Metas) {
 		return false
 	}
@@ -389,6 +397,11 @@ func (cfg *BaseProxyConf) marshalToMsg(pMsg *msg.NewProxy) {
 	pMsg.ProxyType = cfg.ProxyType
 	pMsg.UseEncryption = cfg.UseEncryption
 	pMsg.UseCompression = cfg.UseCompression
+	pMsg.BandwidthLimit = cfg.BandwidthLimit.String()
+	// leave it empty for default value to reduce traffic
+	if cfg.BandwidthLimitMode != "client" {
+		pMsg.BandwidthLimitMode = cfg.BandwidthLimitMode
+	}
 	pMsg.Group = cfg.Group
 	pMsg.GroupKey = cfg.GroupKey
 	pMsg.Metas = cfg.Metas
@@ -399,6 +412,12 @@ func (cfg *BaseProxyConf) unmarshalFromMsg(pMsg *msg.NewProxy) {
 	cfg.ProxyType = pMsg.ProxyType
 	cfg.UseEncryption = pMsg.UseEncryption
 	cfg.UseCompression = pMsg.UseCompression
+	if pMsg.BandwidthLimit != "" {
+		cfg.BandwidthLimit, _ = NewBandwidthQuantity(pMsg.BandwidthLimit)
+	}
+	if pMsg.BandwidthLimitMode != "" {
+		cfg.BandwidthLimitMode = pMsg.BandwidthLimitMode
+	}
 	cfg.Group = pMsg.Group
 	cfg.GroupKey = pMsg.GroupKey
 	cfg.Metas = pMsg.Metas
@@ -411,11 +430,22 @@ func (cfg *BaseProxyConf) checkForCli() (err error) {
 		}
 	}
 
+	if cfg.BandwidthLimitMode != "client" && cfg.BandwidthLimitMode != "server" {
+		return fmt.Errorf("bandwidth_limit_mode should be client or server")
+	}
+
 	if err = cfg.LocalSvrConf.checkForCli(); err != nil {
 		return
 	}
 	if err = cfg.HealthCheckConf.checkForCli(); err != nil {
 		return
+	}
+	return nil
+}
+
+func (cfg *BaseProxyConf) checkForSvr() (err error) {
+	if cfg.BandwidthLimitMode != "client" && cfg.BandwidthLimitMode != "server" {
+		return fmt.Errorf("bandwidth_limit_mode should be client or server")
 	}
 	return nil
 }
@@ -557,6 +587,9 @@ func (cfg *TCPProxyConf) CheckForCli() (err error) {
 }
 
 func (cfg *TCPProxyConf) CheckForSvr(serverCfg ServerCommonConf) error {
+	if err := cfg.BaseProxyConf.checkForSvr(); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -576,7 +609,10 @@ func (cfg *TCPMuxProxyConf) Compare(cmp ProxyConf) bool {
 		return false
 	}
 
-	if cfg.Multiplexer != cmpConf.Multiplexer || cfg.RouteByHTTPUser != cmpConf.RouteByHTTPUser {
+	if cfg.Multiplexer != cmpConf.Multiplexer ||
+		cfg.HTTPUser != cmpConf.HTTPUser ||
+		cfg.HTTPPwd != cmpConf.HTTPPwd ||
+		cfg.RouteByHTTPUser != cmpConf.RouteByHTTPUser {
 		return false
 	}
 
@@ -601,6 +637,8 @@ func (cfg *TCPMuxProxyConf) UnmarshalFromMsg(pMsg *msg.NewProxy) {
 	cfg.CustomDomains = pMsg.CustomDomains
 	cfg.SubDomain = pMsg.SubDomain
 	cfg.Multiplexer = pMsg.Multiplexer
+	cfg.HTTPUser = pMsg.HTTPUser
+	cfg.HTTPPwd = pMsg.HTTPPwd
 	cfg.RouteByHTTPUser = pMsg.RouteByHTTPUser
 }
 
@@ -611,6 +649,8 @@ func (cfg *TCPMuxProxyConf) MarshalToMsg(pMsg *msg.NewProxy) {
 	pMsg.CustomDomains = cfg.CustomDomains
 	pMsg.SubDomain = cfg.SubDomain
 	pMsg.Multiplexer = cfg.Multiplexer
+	pMsg.HTTPUser = cfg.HTTPUser
+	pMsg.HTTPPwd = cfg.HTTPPwd
 	pMsg.RouteByHTTPUser = cfg.RouteByHTTPUser
 }
 
@@ -632,6 +672,10 @@ func (cfg *TCPMuxProxyConf) CheckForCli() (err error) {
 }
 
 func (cfg *TCPMuxProxyConf) CheckForSvr(serverCfg ServerCommonConf) (err error) {
+	if err := cfg.BaseProxyConf.checkForSvr(); err != nil {
+		return err
+	}
+
 	if cfg.Multiplexer != consts.HTTPConnectTCPMultiplexer {
 		return fmt.Errorf("proxy [%s] incorrect multiplexer [%s]", cfg.ProxyName, cfg.Multiplexer)
 	}
@@ -703,6 +747,9 @@ func (cfg *UDPProxyConf) CheckForCli() (err error) {
 }
 
 func (cfg *UDPProxyConf) CheckForSvr(serverCfg ServerCommonConf) error {
+	if err := cfg.BaseProxyConf.checkForSvr(); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -788,6 +835,10 @@ func (cfg *HTTPProxyConf) CheckForCli() (err error) {
 }
 
 func (cfg *HTTPProxyConf) CheckForSvr(serverCfg ServerCommonConf) (err error) {
+	if err := cfg.BaseProxyConf.checkForSvr(); err != nil {
+		return err
+	}
+
 	if serverCfg.VhostHTTPPort == 0 {
 		return fmt.Errorf("type [http] not support when vhost_http_port is not set")
 	}
@@ -860,6 +911,10 @@ func (cfg *HTTPSProxyConf) CheckForCli() (err error) {
 }
 
 func (cfg *HTTPSProxyConf) CheckForSvr(serverCfg ServerCommonConf) (err error) {
+	if err := cfg.BaseProxyConf.checkForSvr(); err != nil {
+		return err
+	}
+
 	if serverCfg.VhostHTTPSPort == 0 {
 		return fmt.Errorf("type [https] not support when vhost_https_port is not set")
 	}
@@ -932,6 +987,9 @@ func (cfg *SUDPProxyConf) CheckForCli() (err error) {
 }
 
 func (cfg *SUDPProxyConf) CheckForSvr(serverCfg ServerCommonConf) error {
+	if err := cfg.BaseProxyConf.checkForSvr(); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -998,6 +1056,9 @@ func (cfg *STCPProxyConf) CheckForCli() (err error) {
 }
 
 func (cfg *STCPProxyConf) CheckForSvr(serverCfg ServerCommonConf) error {
+	if err := cfg.BaseProxyConf.checkForSvr(); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -1064,5 +1125,8 @@ func (cfg *XTCPProxyConf) CheckForCli() (err error) {
 }
 
 func (cfg *XTCPProxyConf) CheckForSvr(serverCfg ServerCommonConf) error {
+	if err := cfg.BaseProxyConf.checkForSvr(); err != nil {
+		return err
+	}
 	return nil
 }
