@@ -20,7 +20,7 @@ import (
 	"net"
 	"time"
 
-	gnet "github.com/fatedier/golib/net"
+	libnet "github.com/fatedier/golib/net"
 )
 
 type HTTPSMuxer struct {
@@ -29,6 +29,7 @@ type HTTPSMuxer struct {
 
 func NewHTTPSMuxer(listener net.Listener, timeout time.Duration) (*HTTPSMuxer, error) {
 	mux, err := NewMuxer(listener, GetHTTPSHostname, timeout)
+	mux.SetFailHookFunc(vhostFailed)
 	if err != nil {
 		return nil, err
 	}
@@ -37,7 +38,7 @@ func NewHTTPSMuxer(listener net.Listener, timeout time.Duration) (*HTTPSMuxer, e
 
 func GetHTTPSHostname(c net.Conn) (_ net.Conn, _ map[string]string, err error) {
 	reqInfoMap := make(map[string]string, 0)
-	sc, rd := gnet.NewSharedConn(c)
+	sc, rd := libnet.NewSharedConn(c)
 
 	clientHello, err := readClientHello(rd)
 	if err != nil {
@@ -69,15 +70,21 @@ func readClientHello(reader io.Reader) (*tls.ClientHelloInfo, error) {
 	return hello, nil
 }
 
+func vhostFailed(c net.Conn) {
+	// Alert with alertUnrecognizedName
+	_ = tls.Server(c, &tls.Config{}).Handshake()
+	c.Close()
+}
+
 type readOnlyConn struct {
 	reader io.Reader
 }
 
 func (conn readOnlyConn) Read(p []byte) (int, error)         { return conn.reader.Read(p) }
-func (conn readOnlyConn) Write(p []byte) (int, error)        { return 0, io.ErrClosedPipe }
+func (conn readOnlyConn) Write(_ []byte) (int, error)        { return 0, io.ErrClosedPipe }
 func (conn readOnlyConn) Close() error                       { return nil }
 func (conn readOnlyConn) LocalAddr() net.Addr                { return nil }
 func (conn readOnlyConn) RemoteAddr() net.Addr               { return nil }
-func (conn readOnlyConn) SetDeadline(t time.Time) error      { return nil }
-func (conn readOnlyConn) SetReadDeadline(t time.Time) error  { return nil }
-func (conn readOnlyConn) SetWriteDeadline(t time.Time) error { return nil }
+func (conn readOnlyConn) SetDeadline(_ time.Time) error      { return nil }
+func (conn readOnlyConn) SetReadDeadline(_ time.Time) error  { return nil }
+func (conn readOnlyConn) SetWriteDeadline(_ time.Time) error { return nil }

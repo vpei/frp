@@ -1,8 +1,24 @@
-### New
+### Features
 
-* The `httpconnect` type in `tcpmux` now supports authentication through the parameters `http_user` and `http_pwd`.
+* Support range ports mapping in TOML/YAML/JSON configuration file by using go template syntax.
 
-### Improved
+  For example:
 
-* The web framework has been upgraded to vue3 + element-plus, and the dashboard has added some information display and supports dark mode.
-* The e2e testing has been switched to ginkgo v2.
+  ```
+  {{- range $_, $v := parseNumberRangePair "6000-6006,6007" "6000-6006,6007" }}
+  [[proxies]]
+  name = "tcp-{{ $v.First }}"
+  type = "tcp"
+  localPort = {{ $v.First }}
+  remotePort = {{ $v.Second }}
+  {{- end }}
+  ```
+
+  This will create 8 proxies such as `tcp-6000, tcp-6001, ... tcp-6007`.
+
+* Health check supports custom request headers.
+
+### Fixes
+
+* Fix the issue of incorrect interval time for rotating the log by day.
+* Disable quic-go's ECN support by default. It may cause issues on certain operating systems.

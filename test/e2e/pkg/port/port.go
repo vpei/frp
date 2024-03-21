@@ -58,7 +58,7 @@ func (pa *Allocator) GetByName(portName string) int {
 			return 0
 		}
 
-		l, err := net.Listen("tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(port)))
+		l, err := net.Listen("tcp", net.JoinHostPort("0.0.0.0", strconv.Itoa(port)))
 		if err != nil {
 			// Maybe not controlled by us, mark it used.
 			pa.used.Insert(port)
@@ -66,7 +66,7 @@ func (pa *Allocator) GetByName(portName string) int {
 		}
 		l.Close()
 
-		udpAddr, err := net.ResolveUDPAddr("udp", net.JoinHostPort("127.0.0.1", strconv.Itoa(port)))
+		udpAddr, err := net.ResolveUDPAddr("udp", net.JoinHostPort("0.0.0.0", strconv.Itoa(port)))
 		if err != nil {
 			continue
 		}
@@ -79,6 +79,7 @@ func (pa *Allocator) GetByName(portName string) int {
 		udpConn.Close()
 
 		pa.used.Insert(port)
+		pa.reserved.Delete(port)
 		return port
 	}
 	return 0

@@ -22,9 +22,9 @@ import (
 	"net/http"
 	"time"
 
-	gnet "github.com/fatedier/golib/net"
+	libnet "github.com/fatedier/golib/net"
 
-	"github.com/fatedier/frp/pkg/util/util"
+	httppkg "github.com/fatedier/frp/pkg/util/http"
 	"github.com/fatedier/frp/pkg/util/vhost"
 )
 
@@ -40,7 +40,8 @@ func NewHTTPConnectTCPMuxer(listener net.Listener, passthrough bool, timeout tim
 	ret := &HTTPConnectTCPMuxer{passthrough: passthrough}
 	mux, err := vhost.NewMuxer(listener, ret.getHostFromHTTPConnect, timeout)
 	mux.SetCheckAuthFunc(ret.auth).
-		SetSuccessHookFunc(ret.sendConnectResponse)
+		SetSuccessHookFunc(ret.sendConnectResponse).
+		SetFailHookFunc(vhostFailed)
 	ret.Muxer = mux
 	return ret, err
 }
@@ -58,19 +59,19 @@ func (muxer *HTTPConnectTCPMuxer) readHTTPConnectRequest(rd io.Reader) (host, ht
 		return
 	}
 
-	host, _ = util.CanonicalHost(req.Host)
+	host, _ = httppkg.CanonicalHost(req.Host)
 	proxyAuth := req.Header.Get("Proxy-Authorization")
 	if proxyAuth != "" {
-		httpUser, httpPwd, _ = util.ParseBasicAuth(proxyAuth)
+		httpUser, httpPwd, _ = httppkg.ParseBasicAuth(proxyAuth)
 	}
 	return
 }
 
-func (muxer *HTTPConnectTCPMuxer) sendConnectResponse(c net.Conn, reqInfo map[string]string) error {
+func (muxer *HTTPConnectTCPMuxer) sendConnectResponse(c net.Conn, _ map[string]string) error {
 	if muxer.passthrough {
 		return nil
 	}
-	res := util.OkResponse()
+	res := httppkg.OkResponse()
 	if res.Body != nil {
 		defer res.Body.Close()
 	}
@@ -84,7 +85,7 @@ func (muxer *HTTPConnectTCPMuxer) auth(c net.Conn, username, password string, re
 		return true, nil
 	}
 
-	resp := util.ProxyUnauthorizedResponse()
+	resp := httppkg.ProxyUnauthorizedResponse()
 	if resp.Body != nil {
 		defer resp.Body.Close()
 	}
@@ -92,9 +93,18 @@ func (muxer *HTTPConnectTCPMuxer) auth(c net.Conn, username, password string, re
 	return false, nil
 }
 
+func vhostFailed(c net.Conn) {
+	res := vhost.NotFoundResponse()
+	if res.Body != nil {
+		defer res.Body.Close()
+	}
+	_ = res.Write(c)
+	_ = c.Close()
+}
+
 func (muxer *HTTPConnectTCPMuxer) getHostFromHTTPConnect(c net.Conn) (net.Conn, map[string]string, error) {
 	reqInfoMap := make(map[string]string, 0)
-	sc, rd := gnet.NewSharedConn(c)
+	sc, rd := libnet.NewSharedConn(c)
 
 	host, httpUser, httpPwd, err := muxer.readHTTPConnectRequest(rd)
 	if err != nil {

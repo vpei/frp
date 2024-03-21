@@ -12,7 +12,7 @@
       <span>{{ row.type }}</span>
     </el-form-item>
     <el-form-item label="Domains">
-      <span>{{ row.custom_domains }}</span>
+      <span>{{ row.customDomains }}</span>
     </el-form-item>
     <el-form-item label="SubDomain">
       <span>{{ row.subdomain }}</span>
@@ -21,7 +21,7 @@
       <span>{{ row.locations }}</span>
     </el-form-item>
     <el-form-item label="HostRewrite">
-      <span>{{ row.host_header_rewrite }}</span>
+      <span>{{ row.hostHeaderRewrite }}</span>
     </el-form-item>
     <el-form-item label="Encryption">
       <span>{{ row.encryption }}</span>
@@ -30,10 +30,10 @@
       <span>{{ row.compression }}</span>
     </el-form-item>
     <el-form-item label="Last Start">
-      <span>{{ row.last_start_time }}</span>
+      <span>{{ row.lastStartTime }}</span>
     </el-form-item>
     <el-form-item label="Last Close">
-      <span>{{ row.last_close_time }}</span>
+      <span>{{ row.lastCloseTime }}</span>
     </el-form-item>
   </el-form>
 
@@ -54,17 +54,62 @@
       <span>{{ row.compression }}</span>
     </el-form-item>
     <el-form-item label="Last Start">
-      <span>{{ row.last_start_time }}</span>
+      <span>{{ row.lastStartTime }}</span>
     </el-form-item>
     <el-form-item label="Last Close">
-      <span>{{ row.last_close_time }}</span>
+      <span>{{ row.lastCloseTime }}</span>
     </el-form-item>
   </el-form>
+
+  <div v-if="row.annotations && row.annotations.size > 0">
+  <el-divider />
+  <el-text class="title-text" size="large">Annotations</el-text>
+  <ul>
+    <li v-for="item in annotationsArray()">
+      <span class="annotation-key">{{ item.key }}</span>
+      <span>{{  item.value }}</span>
+    </li>
+  </ul>
+  </div>
 </template>
 
 <script setup lang="ts">
-defineProps<{
+
+const props = defineProps<{
   row: any
   proxyType: string
 }>()
+
+// annotationsArray returns an array of key-value pairs from the annotations map.
+const annotationsArray = (): Array<{ key: string; value: string }> => {
+  const array: Array<{ key: string; value: any }> = [];
+  if (props.row.annotations) {
+    props.row.annotations.forEach((value: any, key: string) => {
+      array.push({ key, value });
+    });
+  }
+  return array;
+}
 </script>
+
+<style>
+ul {
+  list-style-type: none;
+  padding: 5px;
+}
+
+ul li {
+  justify-content: space-between;
+  padding: 5px;
+}
+
+ul .annotation-key {
+  width: 300px;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.title-text {
+  color: #99a9bf;
+}
+</style>

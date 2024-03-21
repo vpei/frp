@@ -29,7 +29,10 @@ func (f *Framework) RunProcesses(serverTemplates []string, clientTemplates []str
 		path := filepath.Join(f.TempDirectory, fmt.Sprintf("frp-e2e-server-%d", i))
 		err = os.WriteFile(path, []byte(outs[i]), 0o666)
 		ExpectNoError(err)
-		flog.Trace("[%s] %s", path, outs[i])
+
+		if TestContext.Debug {
+			flog.Debugf("[%s] %s", path, outs[i])
+		}
 
 		p := process.NewWithEnvs(TestContext.FRPServerPath, []string{"-c", path}, f.osEnvs)
 		f.serverConfPaths = append(f.serverConfPaths, path)
@@ -37,6 +40,7 @@ func (f *Framework) RunProcesses(serverTemplates []string, clientTemplates []str
 		currentServerProcesses = append(currentServerProcesses, p)
 		err = p.Start()
 		ExpectNoError(err)
+		time.Sleep(500 * time.Millisecond)
 	}
 	time.Sleep(2 * time.Second)
 
@@ -46,7 +50,10 @@ func (f *Framework) RunProcesses(serverTemplates []string, clientTemplates []str
 		path := filepath.Join(f.TempDirectory, fmt.Sprintf("frp-e2e-client-%d", i))
 		err = os.WriteFile(path, []byte(outs[index]), 0o666)
 		ExpectNoError(err)
-		flog.Trace("[%s] %s", path, outs[index])
+
+		if TestContext.Debug {
+			flog.Debugf("[%s] %s", path, outs[index])
+		}
 
 		p := process.NewWithEnvs(TestContext.FRPClientPath, []string{"-c", path}, f.osEnvs)
 		f.clientConfPaths = append(f.clientConfPaths, path)
@@ -56,7 +63,7 @@ func (f *Framework) RunProcesses(serverTemplates []string, clientTemplates []str
 		ExpectNoError(err)
 		time.Sleep(500 * time.Millisecond)
 	}
-	time.Sleep(5 * time.Second)
+	time.Sleep(3 * time.Second)
 
 	return currentServerProcesses, currentClientProcesses
 }
@@ -69,7 +76,7 @@ func (f *Framework) RunFrps(args ...string) (*process.Process, string, error) {
 		return p, p.StdOutput(), err
 	}
 	// sleep for a while to get std output
-	time.Sleep(time.Second)
+	time.Sleep(2 * time.Second)
 	return p, p.StdOutput(), nil
 }
 
@@ -80,7 +87,7 @@ func (f *Framework) RunFrpc(args ...string) (*process.Process, string, error) {
 	if err != nil {
 		return p, p.StdOutput(), err
 	}
-	time.Sleep(time.Second)
+	time.Sleep(2 * time.Second)
 	return p, p.StdOutput(), nil
 }
 
