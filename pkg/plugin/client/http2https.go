@@ -19,11 +19,15 @@ package plugin
 import (
 	"crypto/tls"
 	"io"
+	stdlog "log"
 	"net"
 	"net/http"
 	"net/http/httputil"
 
+	"github.com/fatedier/golib/pool"
+
 	v1 "github.com/fatedier/frp/pkg/config/v1"
+	"github.com/fatedier/frp/pkg/util/log"
 	netpkg "github.com/fatedier/frp/pkg/util/net"
 )
 
@@ -54,6 +58,9 @@ func NewHTTP2HTTPSPlugin(options v1.ClientPluginOptions) (Plugin, error) {
 
 	rp := &httputil.ReverseProxy{
 		Rewrite: func(r *httputil.ProxyRequest) {
+			r.Out.Header["X-Forwarded-For"] = r.In.Header["X-Forwarded-For"]
+			r.Out.Header["X-Forwarded-Host"] = r.In.Header["X-Forwarded-Host"]
+			r.Out.Header["X-Forwarded-Proto"] = r.In.Header["X-Forwarded-Proto"]
 			req := r.Out
 			req.URL.Scheme = "https"
 			req.URL.Host = p.opts.LocalAddr
@@ -64,7 +71,9 @@ func NewHTTP2HTTPSPlugin(options v1.ClientPluginOptions) (Plugin, error) {
 				req.Header.Set(k, v)
 			}
 		},
-		Transport: tr,
+		Transport:  tr,
+		BufferPool: pool.NewBuffer(32 * 1024),
+		ErrorLog:   stdlog.New(log.NewWriteLogger(log.WarnLevel, 2), "", 0),
 	}
 
 	p.s = &http.Server{

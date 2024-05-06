@@ -1,24 +1,14 @@
+### Notable Changes
+
+We have optimized the heartbeat mechanism when tcpmux is enabled (enabled by default). The default value of `heartbeatInterval` has been adjusted to -1. This update ensures that when tcpmux is active, the client does not send additional heartbeats to the server. Since tcpmux incorporates its own heartbeat system, this change effectively reduces unnecessary data consumption, streamlining communication efficiency between client and server.
+
+When connecting to frps versions older than v0.39.0 might encounter compatibility issues due to changes in the heartbeat mechanism. As a temporary workaround, setting the `heartbeatInterval` to 30 can help maintain stable connectivity with these older versions. We recommend updating to the latest frps version to leverage full functionality and improvements.
+
 ### Features
 
-* Support range ports mapping in TOML/YAML/JSON configuration file by using go template syntax.
-
-  For example:
-
-  ```
-  {{- range $_, $v := parseNumberRangePair "6000-6006,6007" "6000-6006,6007" }}
-  [[proxies]]
-  name = "tcp-{{ $v.First }}"
-  type = "tcp"
-  localPort = {{ $v.First }}
-  remotePort = {{ $v.Second }}
-  {{- end }}
-  ```
-
-  This will create 8 proxies such as `tcp-6000, tcp-6001, ... tcp-6007`.
-
-* Health check supports custom request headers.
+* Show tcpmux proxies on the frps dashboard.
+* `http` proxy can modify the response header. For example, `responseHeaders.set.foo = "bar"` will add a new header `foo: bar` to the response.
 
 ### Fixes
 
-* Fix the issue of incorrect interval time for rotating the log by day.
-* Disable quic-go's ECN support by default. It may cause issues on certain operating systems.
+* When an HTTP proxy request times out, it returns 504 instead of 404 now.
